@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>customer-dashboard</title>
+</head>
+<body>
+    <p>Customer-Dashboard</p>
+    <button onclick="logout()">LogOut</button>
+
+    <script type="module">
+        import {auth, signOut} from './firebase.js';
+
+        window.logout= async function () {
+            try{
+                await signOut(auth);
+                alert('Logged out successfully');
+                window.location.href='Login.html';
+
+            }catch(error){
+                alert(`Logout error: ${error.message}`);
+            }
+            
+        };
+    </script>
+</body>
+</html>

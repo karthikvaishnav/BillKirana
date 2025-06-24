@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="Login.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <title>BillKirana</title>
+</head>
+<body>
+    <div id="mainimage">
+        <img src="mainimage.jpeg" alt="hi">
+    </div>
+    <div class="slogan">
+        <h2>
+          <span class="top">BillKirana</span>
+          <span class="bottom">BillKirana</span>
+          <span class="slogan-text">From Store to Screen, Effortless Management!</span>
+        </h2>
+      </div>
+      
+    <input type="checkbox"  class="who" id="who">
+    <div class="changelogin">
+        <label for="who"><h2>
+            Owner Login
+        </h2></label>
+    </div>
+    <div class="changelogin2">
+        <label for="who"><h2>
+            Customer Login
+        </h2></label>
+    </div>
+    
+    <div class="login">
+        <img src="Designer.jpeg" alt="" id="logimg">
+        <h1>Customer Login</h1>
+        <input type="text" name="id" class="inputs" id="customer-email" placeholder="Mobile number or Email">
+        
+        <input type="password" name="pass" class="inputs" id="customer-password" placeholder="password">
+        
+        <div class="extra">
+            <input type="checkbox" id="customer-rememberme" name="rememberme">
+            <label for="rememberme">Remember me</label>
+            <a href="" id="Forgot">Forgot password?</a>
+        </div>
+        
+            
+        
+        <button onclick="logIn('customer')" id="loginButton">Login</button>
+        <div class="new">
+            <p>New Customer?</p>
+            <a href="signup.html">Sign up</a>
+        </div>
+    </div>
+
+
+    <div class="ownerlogin">
+        <img src="Designer.jpeg" alt="" id="logimg">
+        <h1>Owner Login</h1>
+        <input type="text" name="id" class="inputs" id="owner-email" placeholder="Mobile number or Email">
+        <input type="password" name="pass" class="inputs" id="owner-password" placeholder="password">
+        <div class="extra">
+            <input type="checkbox" id="owner-rememberme" name="rememberme">
+            <label for="rememberme">Remember me</label>
+            <a href="" id="Forgot">Forgot password?</a>
+        </div>
+        
+        <button onclick="logIn('owner')" id="loginButton">Login</button>
+        <div class="new">
+            <p>New Owner?</p>
+            <a href="signup.html">Sign up</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import {auth, db, signInWithEmailAndPassword, collection, query, where, getDocs, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged} from './firebase.js';
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                try {
+                    const q = query(collection(db, 'users'), where('userId', '==', user.uid));
+                    const querySnapshot = await getDocs(q);
+                    if (!querySnapshot.empty) {
+                        const userRole = querySnapshot.docs[0].data().role;
+                        window.location.href = userRole === 'owner' ? 'owner-dashboard.html' : 'customer-dashboard.html';
+                    }
+                } catch (error) {
+                    console.error('Error checking role:', error.message);
+                }
+            }
+        });
+
+        window.logIn=async function (role) {
+            const email=document.getElementById(`${role}-email`).value.trim();
+            const password=document.getElementById(`${role}-password`).value;
+            const rememberme=document.getElementById(`${role}-rememberme`).checked;
+            
+            if(!email||!password){
+                alert('Please fill all the fields');
+                return;
+            }
+            if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+                alert('Please enter a valid email address (e.g., user@example.com).');
+                return;
+            }
+            if (password.length < 6) {
+                alert('Password must be at least 6 characters long.');
+                return;
+            }
+
+            try{
+                await setPersistence(auth, rememberme? browserLocalPersistence: browserSessionPersistence);
+                const userCredential= await signInWithEmailAndPassword(auth, email, password);
+                const q= query(collection(db, 'users'),where('userId','==',userCredential.user.uid));
+                const querySnapshot= await getDocs(q);
+
+                if(querySnapshot.empty){
+                    throw new Error('User role not found!');
+                }
+
+                const userDoc=querySnapshot.docs[0].data();
+                const userRole=userDoc.role;
+
+                if(userRole!==role){
+                    throw new Error(`Invalid role. Excpected ${role}, but user is registered as ${userRole}`);
+                }
+
+                alert(`${role.charAt(0).toUpperCase()+role.slice(1)} logged in successfully`);
+                window.location.href=role==='owner'? 'owner-dashboard.html':'customer-dashboard.html';
+            }catch(error){
+                alert(`Login error:${error.message}`);
+            }
+            
+        }
+
+    </script>
+    
+</body>
+</html>
