@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="Login.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
     <title>BillKirana</title>
 </head>
 <body>
@@ -21,23 +21,21 @@
         </h2>
     </div>
       
-    <input type="checkbox"  class="who" id="who">
+    <input type="checkbox" class="who" id="who">
     <div class="changelogin">
-        <label for="who"><h2>
-            Owner SignUp
-        </h2></label>
+        <label for="who"><h2>Owner SignUp</h2></label>
     </div>
     <div class="changelogin2">
-        <label for="who"><h2>
-            Customer SignUp
-        </h2></label>
+        <label for="who"><h2>Customer SignUp</h2></label>
     </div>
     
-    <div class="login signupForm" >
+    <div class="login signupForm">
         <img src="Designer.jpeg" alt="" id="logimg">
         <h1>Customer SignUp</h1>
         <input type="text" name="id" class="inputs" id="customer-name" placeholder="Full name" required>
-        <input type="email" name="id" class="inputs" id="customer-email" placeholder="Email Id" required>
+        <input type="text" name="id" class="inputs" id="customer-email" placeholder="Email Id or Mobile Number." required>
+        <input style="display: none;" type="text" name="otp" class="inputs" id="customer-otp" placeholder="Enter OTP" required>
+        <button style="display: none;" id="customer-verify-button" onclick="verifyOtp('customer')">Verify</button>
         <input type="password" name="pass" class="inputs" id="customer-password" placeholder="password" required>
         <input type="password" name="pass" class="inputs" id="customer-confirmpass" placeholder="Confirm Password" required>  
         <div class="extra">
@@ -52,12 +50,13 @@
         </div>
     </div>
 
-
     <div class="ownerlogin signupForm">
         <img src="Designer.jpeg" alt="" id="logimg">
         <h1>Owner SignUp</h1>
         <input type="text" name="id" class="inputs" id="owner-name" placeholder="Shop name">
-        <input type="email" name="id" class="inputs" id="owner-email" placeholder="Email Id">
+        <input type="text" name="id" class="inputs" id="owner-email" placeholder="Email Id or Phone Number">
+        <input style="display: none;" type="text" name="otp" class="inputs" id="owner-otp" placeholder="Enter OTP" required>
+        <button style="display: none;" id="owner-verify-button" onclick="verifyOtp('owner')">Verify</button>
         <input type="password" name="pass" class="inputs" id="owner-password" placeholder="password">
         <input type="password" name="confirmpass" class="inputs" id="owner-confirmpass" placeholder="Confirm Password">
         <div class="extra">
@@ -72,63 +71,126 @@
         </div>
     </div>
     
+    <div id="recaptcha-container"></div>
 
     <script type="module">
-        import {auth, db, createUserWithEmailAndPassword, collection, addDoc, query, where, getDocs, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged} from './firebase.js';
+        import { auth, db, createUserWithEmailAndPassword, signInWithPhoneNumber, collection, addDoc, query, where, getDocs, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged, RecaptchaVerifier, setDoc, doc } from './firebase.js';
+        let verificationId = '';
 
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded, auth:', auth); // Debug auth
+            console.log('RecaptchaVerifier:', RecaptchaVerifier); // Debug RecaptchaVerifier
+
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    try {
+                        const q = query(collection(db, 'users'), where('userId', '==', user.uid));
+                        const querySnapshot = await getDocs(q);
+                        if (!querySnapshot.empty) {
+                            const userRole = querySnapshot.docs[0].data().role;
+                            window.location.href = userRole === 'owner' ? 'owner-dashboard.html' : 'customer-dashboard.html';
+                        }
+                    } catch (error) {
+                        console.error('Error checking role:', error.message);
+                    }
+                }
+            });
+
+            window.signUp = async function (role) {
+                const name = document.getElementById(`${role}-name`).value.trim();
+                const emailOrPhone = document.getElementById(`${role}-email`).value.trim();
+                const password = document.getElementById(`${role}-password`).value;
+                const confirmPassword = document.getElementById(`${role}-confirmpass`).value;
+                const rememberMe = document.getElementById(`${role}-rememberme`).checked;
+                const isPhone = emailOrPhone.match(/^\+91\d{10}$/);
+                const isEmail = emailOrPhone.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+                
+                console.log('signUp called:', { role, emailOrPhone, isPhone, isEmail }); // Debug
+
+                if (!name || !emailOrPhone || !password || !confirmPassword) {
+                    alert("Please Fill all the Fields.");
+                    return;
+                }
+                if (password !== confirmPassword) {
+                    alert("Passwords do not match.");
+                    return;
+                }
+                if (password.length < 6) {
+                    alert('Password must be at least 6 characters long.');
+                    return;
+                }
+                if (!isEmail && !isPhone) {
+                    alert('Please enter a valid email address (e.g., user@example.com) or phone number (e.g., +91XXXXXXXXXX).');
+                    return;
+                }
+
                 try {
-                    const q = query(collection(db, 'users'), where('userId', '==', user.uid));
-                    const querySnapshot = await getDocs(q);
-                    if (!querySnapshot.empty) {
-                        const userRole = querySnapshot.docs[0].data().role;
-                        window.location.href = userRole === 'owner' ? 'owner-dashboard.html' : 'customer-dashboard.html';
+                    await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+                    if (isEmail) {
+                        const userCredential = await createUserWithEmailAndPassword(auth, emailOrPhone, password);
+                        await setDoc(doc(db, 'users', userCredential.user.uid), {
+                            userId: userCredential.user.uid,
+                            role,
+                            name,
+                            email: emailOrPhone,
+                            phoneNumber: null,
+                            shopName: role === 'owner' ? name : null
+                        });
+                        alert(`${role.charAt(0).toUpperCase() + role.slice(1)} signed up successfully`);
+                        window.location.href = role === 'owner' ? 'owner-dashboard.html' : 'customer-dashboard.html';
+                    } else if (isPhone) {
+                        console.log('Initializing RecaptchaVerifier'); // Debug
+                        const recaptcha = new RecaptchaVerifier('recaptcha-container', { size: 'invisible' }, auth);
+                        console.log('RecaptchaVerifier initialized:', recaptcha); // Debug
+                        window.confirmationResult = await signInWithPhoneNumber(auth, emailOrPhone, recaptcha);
+                        verificationId = window.confirmationResult.verificationId;
+                        console.log('OTP sent, verificationId:', verificationId); // Debug
+                        document.getElementById(`${role}-otp`).style.display = 'block';
+                        document.getElementById(`${role}-verify-button`).style.display = 'block';
+                        document.getElementById(`${role}-email`).disabled = true;
+                        document.getElementById(`${role}-password`).disabled = true;
+                        document.getElementById(`${role}-confirmpass`).disabled = true;
+                        document.getElementById(`${role}-name`).disabled = true;
+                        alert('OTP sent to your phone.');
                     }
                 } catch (error) {
-                    console.error('Error checking role:', error.message);
+                    console.error('Signup error:', error); // Debug
+                    alert('Signup error: ' + error.message);
                 }
-            }
+            };
+
+            window.verifyOtp = async function (role) {
+                const otp = document.getElementById(`${role}-otp`).value.trim();
+                if (!otp) {
+                    alert('Please enter the OTP.');
+                    return;
+                }
+                if (!window.confirmationResult) {
+                    alert('OTP session expired or not initiated. Please try signing up again.');
+                    console.error('confirmationResult is undefined'); // Debug
+                    return;
+                }
+                try {
+                    const res = await window.confirmationResult.confirm(otp);
+                    const user = res.user;
+                    const name = document.getElementById(`${role}-name`).value.trim();
+                    const emailOrPhone = document.getElementById(`${role}-email`).value.trim();
+                    await setDoc(doc(db, 'users', user.uid), {
+                        userId: user.uid,
+                        role,
+                        name,
+                        email: null,
+                        phoneNumber: emailOrPhone,
+                        shopName: role === 'owner' ? name : null
+                    });
+                    alert(`${role.charAt(0).toUpperCase() + role.slice(1)} signed up successfully`);
+                    window.location.href = role === 'owner' ? 'owner-dashboard.html' : 'customer-dashboard.html';
+                } catch (error) {
+                    console.error('OTP verification error:', error); // Debug
+                    alert('OTP verification error: ' + error.message);
+                }
+            };
         });
-        
-
-        window.signUp=async function (role) {
-            const name=document.getElementById(`${role}-name`).value;
-            const email=document.getElementById(`${role}-email`).value;
-            const password=document.getElementById(`${role}-password`).value;
-            const confirmPassword=document.getElementById(`${role}-confirmpass`).value;
-            const rememberme=document.getElementById(`${role}-rememberme`).checked;
-            
-            if(!name|| !email||!password||!confirmPassword){
-                alert("Please Fill all the Fields.");
-            }
-            if(password!==confirmPassword){
-                alert("Passwords do not match.");
-            }
-            if(password.length<6){
-                alert('Password must be atleast 6 characters long.');
-                return;
-            }
-            if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-                alert('Please enter a valid email address (e.g., user@example.com).');
-                return;
-            }
-
-
-            try{
-                await setPersistence(auth, rememberme? browserLocalPersistence: browserSessionPersistence);
-                const userCredential =await createUserWithEmailAndPassword(auth, email, password);
-                await addDoc(collection(db, 'users'),{
-                    userId:userCredential.user.uid,role,name,email,
-                    shopName:role ==='owner'? name:null
-                });
-
-                alert(`${role.charAt(0).toUpperCase()+role.slice(1)} signed up successfully`);
-                window.location.href = role === 'owner' ? 'owner-dashboard.html' : 'customer-dashboard.html';            } catch(error){
-                alert('signup error: '+ error.message);
-            }
-            
-        };
     </script>
 </body>
 </html>
