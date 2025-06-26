@@ -259,5 +259,19 @@ button:hover{
     top: 150px
 }
 
+/* .otp-container{
+    display:
+} */
 
+#owner-otp, #customer-otp{
+    width: 40%;
+    
+    margin-left: 40px;
+    margin-bottom: 20px;
+}
 
+#verify-button{
+    width: 20%;
+    margin-top: -60px;
+    margin-right: 40px;
+}
