@@ -3,24 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="owner-dashboard.css">
     <title>Owner-Dashboard</title>
 </head>
 <body>
-    <h1>Owner-Dashboard</h1>
+    
+    <div class="banner">
+        <div class="slogan">
+            <h2>
+            <span class="top">BillKirana!</span>
+            <span class="bottom">BillKirana!</span>
+            <span class="slogan-text">From Store to Screen, Effortless Management!</span>
+            </h2>
+        </div>
+        <img src="banner1.jpg" id="owner-banner">
+        <button onclick="logout()" id="logout-button">LogOut</button>
+    </div>
+    
+    <div class="billing">
+        <h1>billing section</h1>
+    </div>
 
     <div class="inventories">
-        <div class="item">
-            
-        </div>
+        <h1>inventories section</h1>
     </div>
 
     <div class="add-inventories">
+        <div class="add-inventories-div1">
+        
+            <form action="" id="new-inventory-form">
+                <h1>ADD NEW INVENTORY.</h1>
+                <label for="item-name">Product Name :</label>
+                <input type="text" name="item-name" id="item-name" placeholder="Product name"> <br> <br>
+                <label for="item-img">Product Image :</label>
+                <input type="file" accept="image/*" id="item-img"> <br> <br>
+                <label for="item-cateogry">Product Cateogry :</label>
+                <input type="text" name="item-cateogry" id="item-cateogry" placeholder="Cateogry"> <br> <br>
+                <label for="item-buying-price">Buying Price :</label>
+                <input type="text" name="item-buying-price" id="item-buying-price" placeholder="Buying price(Overall)"> <br> <br>
+                <label for="item-estimated-selling-price">Estimated Selling Price:</label>
+                <input type="text" name="item-estimated-selling-price" id="item-estimated-selling-price" placeholder="Estimated selling price"> <br> <br>
+                <label for="item-quantity">Quantity :</label>
+                <input type="text" name="item-quantity" id="item-quantity" placeholder="Product quantity"> <br> <br>
+                <label for="item-unit">Product Units :</label>
+                <select name="item-unit" id="item-unit">
+                    <option value="grams">Grams</option>
+                    <option value="pieces">Pieces</option>
+                </select> <br> <br>
 
+                <button type="submit">FINALISE</button>
+            </form>
+            <div class="div1-slogan">
+                <h2><q>From the heart of the kirana to the pulse of technology, BillKirana transforms every transaction into a seamless story of success.</q></h2>
+            </div>
+
+        </div>
+        <div class="add-inventories-div2">
+            <div class="div2-slogan">
+                <h2><q>With BillKirana, every shelf counts and every sale shines—digitalizing dreams, one store at a time.</q></h2>
+            </div>
+        <form action="" id="existing-inventory-form">
+            <h1>EDIT EXISTING INVENTORY.</h1>
+            
+            
+            
+            <label for="items">Product Name :</label>
+            <input id="existing-item-name" list="items" name="items" placeholder="Type to search..." / required> 
+            <datalist id="items">
+                <!-- <option value="Apple">
+                <option value="Banana"> 
+                <option value="Mango">
+                <option value="Orange"> -->
+            </datalist> <br> <br>
+
+            <label for="item-img">Product Image :</label>
+            <input type="file" accept="image/*" id="existing-item-img"> <br> <br>
+
+            <label for="item-cateogry">Product Cateogry :</label>
+            <input type="text" name="item-cateogry" id="existing-item-cateogry" placeholder="Cateogry"> <br> <br>
+
+            <label for="item-buying-price">Buying Price :</label>
+            <input type="text" name="item-buying-price" id="existing-item-buying-price" placeholder="Buying price(Overall)"> <br> <br>
+
+            <label for="item-estimated-selling-price">Estimated Selling Price:</label>
+            <input type="text" name="item-estimated-selling-price" id="existing-item-estimated-selling-price" placeholder="Estimated selling price"> <br> <br>
+
+            <label for="item-quantity">Quantity :</label>
+            <input type="text" name="item-quantity" id="existing-item-quantity" placeholder="Product quantity"> <br> <br>
+
+            <label for="item-unit">Product Units :</label>
+                <select name="item-unit" id="existing-item-unit">
+                    <option value="grams">Grams</option>
+                    <option value="pieces">Pieces</option>
+                </select> <br> <br>
+            <button type="submit">FINALISE</button>
+        </form>
+        </div>
+
+        <!-- item-name
+        item-img
+        item-buying-price
+        item-estimated-selling-price
+        item-quantity
+        item-cateogry -->
     </div>
 
-    <div class="profit-summary">
+    
+    
 
-    </div>
+    <script type="module">
+        import {auth, signOut,db,storage, ref, uploadBytes, getDownloadURL, addDoc, updateDoc, getDocs,collection, query, where} from './firebase.js';
 
+        window.logout= async function () {
+            try{
+                await signOut(auth);
+                alert('Logged out successfully');
+                window.location.href='Login.html';
+
+            }catch(error){
+                alert(`Logout error: ${error.message}`);
+            }   
+        };
+
+        document.addEventListener('DOMContentLoaded',()=>{
+            document.getElementById('new-inventory-form').addEventListener('submit',async (e)=>{
+                e.preventDefault();
+                await handleNewInventory();
+            });
+            document.getElementById('existing-inventory-form',async (e)=>{
+                e.preventDefault();
+                await handleExistingInventory();
+            });
+
+            async function handleNewInventory() {
+                const name=document.getElementById('item-name').value.trim();
+                const imgFile= document.getElementById('item-img').files[0];
+                const category=document.getElementById('item-cateogry').value.trim();
+                const totalBuyingPrice = parseFloat(document.getElementById('item-buying-price').value)||0;
+                const sellingPrice= parseFloat(document.getElementById('item-estimated-selling-price').value)||0;
+                const quantity= parseFloat(document.getElementById('item-quantity').value)||0;
+                const unit=document.getElementById('item-unit').value;
+                if (!name || !imgFile || !category || totalBuyingPrice <= 0 || sellingPrice <= 0 || quantity <= 0 || !unit) {
+                    alert('Please fill all fields with valid values.');
+                    return;
+                }
+                try{
+                    const storageRef= ref(storage, `images/${name}_${Date.now()}`);
+                    await uploadBytes(storageRef,imgFile);
+                    const imageUrl= await getDownloadURL(storageRef);
+
+                    const buyingPricePerUnit = totalBuyingPrice/ quantity;
+                    const profitPerUnit= sellingPrice-buyingPricePerUnit;
+
+                    await addDoc(collection(db,'products'),{
+                        name,
+                        imageUrl,
+                        category,
+                        totalBuyingPrice,
+                        buyingPricePerUnit,
+                        sellingPrice,
+                        quantity,
+                        unit,
+                        profitPerUnit,
+                        timestamp: new Date()
+                    });
+                    alert('New inventory added successfully');
+                    document.getElementById('new-inventory-form').reset();
+                }catch(error){
+                    alert('Error adding inventory:' +error.message);
+                }
+            }
+        })  
+    </script>
 </body>
 </html>
